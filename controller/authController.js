@@ -3,6 +3,7 @@ const generateOtp = require("../utils/generateOtp");
 const sendMail = require("../helpers/sendMail");
 const bcrypt = require("bcryptjs");
 const redisClient = require("../config/redis");
+const jwt = require("jsonwebtoken");
 
 exports.register = async (req, res) => {
     try {
@@ -44,6 +45,50 @@ exports.verifyOtp = async (req, res) => {
         await redisClient.del(`otp:${email}`);
 
         res.json({ message: "Xác thực thành công" });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+};
+
+exports.login = async (req, res) => {
+    try {
+        const { email, password } = req.body;
+
+        if (!email || !password) {
+            return res.status(400).json({ message: "Email và password là bắt buộc" });
+        }
+
+        const user = await User.findOne({ email });
+        if (!user) {
+            return res.status(400).json({ message: "Email hoặc password không đúng" });
+        }
+
+        if (!user.isVerified) {
+            return res.status(400).json({ message: "Tài khoản chưa được xác thực, vui lòng kiểm tra email" });
+        }
+
+        const isPasswordValid = await bcrypt.compare(password, user.password);
+        if (!isPasswordValid) {
+            return res.status(400).json({ message: "Email hoặc password không đúng" });
+        }
+
+        const token = jwt.sign(
+            { userId: user._id, email: user.email },
+            process.env.JWT_SECRET,
+            { expiresIn: '7d' }
+        );
+
+        res.json({
+            message: "Đăng nhập thành công",
+            data:{
+                token,
+            user: {
+                id: user._id,
+                email: user.email,
+                isVerified: user.isVerified
+            }
+            }
+        });
     } catch (err) {
         res.status(500).json({ message: err.message });
     }
