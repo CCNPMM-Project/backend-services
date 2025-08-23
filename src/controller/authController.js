@@ -10,7 +10,7 @@ exports.register = async (req, res) => {
         const { email, password } = req.body;
 
         let existingUser = await User.findOne({ email });
-        if (existingUser) return res.status(400).json({ message: "Email đã tồn tại" });
+        if (existingUser) return res.status(400).json({ message: "Email already exists" });
 
         const hashedPassword = await bcrypt.hash(password, 10);
         const user = new User({ email, password: hashedPassword });
@@ -19,9 +19,9 @@ exports.register = async (req, res) => {
         const otp = generateOtp();
         await redisClient.setEx(`otp:${email}`, 300, otp);
 
-        await sendMail(email, "Mã OTP xác thực", `Mã OTP của bạn là: ${otp}`);
+        await sendMail(email, "Verification OTP Code", `Your OTP code is: ${otp}`);
 
-        res.json({ message: "Đăng ký thành công, vui lòng kiểm tra email để nhập OTP" });
+        res.json({ message: "Registration successful, please check your email for OTP" });
     } catch (err) {
         res.status(500).json({ message: err.message });
     }
@@ -31,20 +31,24 @@ exports.verifyOtp = async (req, res) => {
     try {
         const { email, otp } = req.body;
 
+        if (!email || !otp) {
+            return res.status(400).json({ message: "Email and OTP are required" });
+        }
+
         const user = await User.findOne({ email });
-        if (!user) return res.status(404).json({ message: "Người dùng không tồn tại" });
+        if (!user) return res.status(404).json({ message: "User not found" });
 
         const storedOtp = await redisClient.get(`otp:${email}`);
-        if (!storedOtp) return res.status(400).json({ message: "OTP hết hạn hoặc không tồn tại" });
+        if (!storedOtp) return res.status(400).json({ message: "OTP expired or does not exist" });
 
-        if (storedOtp !== otp) return res.status(400).json({ message: "OTP không hợp lệ" });
+        if (storedOtp !== otp) return res.status(400).json({ message: "Invalid OTP" });
 
         user.isVerified = true;
         await user.save();
 
         await redisClient.del(`otp:${email}`);
 
-        res.json({ message: "Xác thực thành công" });
+        res.json({ message: "Verification successful" });
     } catch (err) {
         res.status(500).json({ message: err.message });
     }
@@ -55,21 +59,21 @@ exports.login = async (req, res) => {
         const { email, password } = req.body;
 
         if (!email || !password) {
-            return res.status(400).json({ message: "Email và password là bắt buộc" });
+            return res.status(400).json({ message: "Email and password are required" });
         }
 
         const user = await User.findOne({ email });
         if (!user) {
-            return res.status(400).json({ message: "Email hoặc password không đúng" });
+            return res.status(400).json({ message: "Invalid email or password" });
         }
 
         if (!user.isVerified) {
-            return res.status(400).json({ message: "Tài khoản chưa được xác thực, vui lòng kiểm tra email" });
+            return res.status(400).json({ message: "Account not verified, please check your email" });
         }
 
         const isPasswordValid = await bcrypt.compare(password, user.password);
         if (!isPasswordValid) {
-            return res.status(400).json({ message: "Email hoặc password không đúng" });
+            return res.status(400).json({ message: "Invalid email or password" });
         }
 
         const token = jwt.sign(
@@ -79,14 +83,37 @@ exports.login = async (req, res) => {
         );
 
         res.json({
-            message: "Đăng nhập thành công",
-            data:{
+            message: "Login successful",
+            data: {
                 token,
-            user: {
+                user: {
+                    id: user._id,
+                    email: user.email,
+                    isVerified: user.isVerified
+                }
+            }
+        });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+};
+
+exports.getProfile = async (req, res) => {
+    try {
+        const token = req.headers.authorization?.split(" ")[1];
+        if (!token) return res.status(401).json({ message: "No token provided" });
+
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        const user = await User.findById(decoded.userId).select("-password");
+
+        if (!user) return res.status(404).json({ message: "User not found" });
+
+        res.json({
+            message: "Profile retrieved successfully",
+            data: {
                 id: user._id,
                 email: user.email,
                 isVerified: user.isVerified
-            }
             }
         });
     } catch (err) {
