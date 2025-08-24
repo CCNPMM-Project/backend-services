@@ -113,6 +113,63 @@ exports.getProfile = async (req, res) => {
             data: {
                 id: user._id,
                 email: user.email,
+                fullName: user.fullName,
+                dateOfBirth: user.dateOfBirth,
+                gender: user.gender,
+                phoneNumber: user.phoneNumber,
+                profilePicture: user.profilePicture,
+                isVerified: user.isVerified
+            }
+        });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+};
+
+exports.verifyToken = async (req, res) => {
+    try {
+        const token = req.headers.authorization?.split(" ")[1];
+        if (!token) return res.status(401).json({ message: "No token provided" });
+
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        const user = await User.findById(decoded.userId).select("-password");
+
+        if (!user) return res.status(404).json({ message: "User not found" });
+
+        res.status(200).json({ status: 200, message: "Token is valid" });
+    } catch (err) {
+        res.status(401).json({ message: "Invalid token" });
+    }
+};
+
+exports.updateProfile = async (req, res) => {
+    try {
+        const token = req.headers.authorization?.split(" ")[1];
+        if (!token) return res.status(401).json({ message: "No token provided" });
+
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        const user = await User.findById(decoded.userId).select("-password");
+
+        if (!user) return res.status(404).json({ message: "User not found" });
+
+        const { fullName, dateOfBirth, gender, phoneNumber, profilePicture } = req.body;
+        user.fullName = fullName || user.fullName;
+        user.dateOfBirth = dateOfBirth || user.dateOfBirth;
+        user.gender = gender || user.gender;
+        user.phoneNumber = phoneNumber || user.phoneNumber;
+        user.profilePicture = profilePicture || user.profilePicture;
+
+        await user.save();
+        res.json({
+            message: "Profile updated successfully",
+            data: {
+                id: user._id,
+                email: user.email,
+                fullName: user.fullName,
+                dateOfBirth: user.dateOfBirth,
+                gender: user.gender,
+                phoneNumber: user.phoneNumber,
+                profilePicture: user.profilePicture,
                 isVerified: user.isVerified
             }
         });
