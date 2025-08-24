@@ -120,3 +120,59 @@ exports.getProfile = async (req, res) => {
         res.status(500).json({ message: err.message });
     }
 };
+
+exports.forgotPassword = async (req, res) => {
+    try {
+        const { email } = req.body;
+
+        if (!email) {
+            return res.status(400).json({ message: "Email is required" });
+        }
+
+        const user = await User.findOne({ email });
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        if (!user.isVerified) {
+            return res.status(400).json({ message: "Account not verified, please verify your account first" });
+        }
+
+        const otp = generateOtp();
+        await redisClient.setEx(`reset_otp:${email}`, 300, otp);
+
+        await sendMail(email, "Password Reset OTP Code", `Your password reset OTP code is: ${otp}. This code will expire in 5 minutes.`);
+
+        res.json({ message: "Password reset OTP sent to your email" });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+};
+
+exports.resetPassword = async (req, res) => {
+    try {
+        const { email, otp, newPassword } = req.body;
+
+        if (!email || !otp || !newPassword) {
+            return res.status(400).json({ message: "Email, OTP and new password are required" });
+        }
+
+        const user = await User.findOne({ email });
+        if (!user) return res.status(404).json({ message: "User not found" });
+
+        const storedOtp = await redisClient.get(`reset_otp:${email}`);
+        if (!storedOtp) return res.status(400).json({ message: "OTP expired or does not exist" });
+
+        if (storedOtp !== otp) return res.status(400).json({ message: "Invalid OTP" });
+
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+        user.password = hashedPassword;
+        await user.save();
+
+        await redisClient.del(`reset_otp:${email}`);
+
+        res.json({ message: "Password reset successful" });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+};
