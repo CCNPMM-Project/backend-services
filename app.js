@@ -1,7 +1,7 @@
 const express = require("express");
 const cors = require('cors');
-const connectDB = require("./config/db");
-const passport = require("./config/passport");
+const connectDB = require("./src/config/db");
+const passport = require("./src/config/passport");
 const session = require("express-session");
 
 const app = express();
