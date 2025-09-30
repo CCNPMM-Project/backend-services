@@ -63,8 +63,11 @@ const updateJob = async (req, res) => {
       closingDate,
     } = req.body;
 
-
     await jobService.checkJobOwnership(jobId, userId);
+
+    // Lấy thông tin job cũ để so sánh status
+    const oldJob = await jobService.getJobById(jobId);
+    const oldStatus = oldJob.status;
 
     const updatedJob = await jobService.updateJob(jobId, {
       title,
@@ -80,6 +83,35 @@ const updateJob = async (req, res) => {
       workHours,
       closingDate,
     });
+
+    // Gửi thông báo nếu status thay đổi
+    if (status && status !== oldStatus) {
+      try {
+        const notificationService = require("../services/notificationService");
+        await notificationService.notifyJobStatusChange(jobId, updatedJob.title, status);
+
+        // Gửi thông báo real-time qua WebSocket
+        const sendNotificationToUser = req.app.get('sendNotificationToUser');
+        if (sendNotificationToUser) {
+          const notification = {
+            id: Date.now().toString(),
+            type: 'JOB_UPDATE',
+            message: `Công việc "${updatedJob.title}" đã ${status === 'active' ? 'được kích hoạt' : 'bị đóng'}`,
+            createdAt: new Date().toISOString(),
+            isRead: false,
+            data: {
+              jobId,
+              jobTitle: updatedJob.title,
+              status
+            }
+          };
+          
+          sendNotificationToUser(userId, notification);
+        }
+      } catch (notificationError) {
+        console.error("Error sending job status notification:", notificationError);
+      }
+    }
 
     res.status(200).json({ success: true, data: updatedJob });
   } catch (error) {

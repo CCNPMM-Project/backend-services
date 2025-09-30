@@ -34,11 +34,40 @@ app.get("/", (req, res) => {
   res.json({ message: "Hello, world!" });
 });
 
+// Test WebSocket endpoint
+app.get("/test-websocket", (req, res) => {
+  const sendNotificationToUser = req.app.get('sendNotificationToUser');
+  if (sendNotificationToUser) {
+    const testNotification = {
+      id: Date.now().toString(),
+      type: 'TEST',
+      message: 'Test notification from server',
+      createdAt: new Date().toISOString(),
+      isRead: false,
+      data: {}
+    };
+    
+    // Send to all connected users (for testing)
+    sendNotificationToUser('test-user', testNotification);
+    res.json({ 
+      success: true, 
+      message: "Test notification sent",
+      notification: testNotification
+    });
+  } else {
+    res.json({ 
+      success: false, 
+      message: "sendNotificationToUser function not found" 
+    });
+  }
+});
+
 app.use("/api/auth", require("./src/routes/authRoutes"));
 app.use("/api/jobs", require("./src/routes/jobRoutes"));
 app.use("/api/applications", require("./src/routes/applicationRoutes"));
 app.use("/api/companies", require("./src/routes/companyRoutes"));
 app.use("/api/users", require("./src/routes/userRoutes"));
+app.use("/api/notifications", require("./src/routes/notificationRoutes"));
 
 
 module.exports = app;
