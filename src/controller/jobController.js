@@ -186,6 +186,40 @@ const getSavedJobs = async (req, res) => {
   }
 };
 
+const getApplicationCount = async (req, res) => {
+  try {
+    const jobId = req.params.jobId;
+    const count = await jobService.getApplicationCount(jobId);
+    res.status(200).json({ success: true, data: { applicationCount: count } });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+};
+
+const markJobAsViewed = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const jobId = req.params.jobId;
+
+    const result = await jobService.markJobAsViewed(userId, jobId);
+    res.status(200).json({ success: true, message: result.message });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+};
+
+const getViewedJobs = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const { page = 1, limit = 10 } = req.query;
+
+    const result = await jobService.getViewedJobs(userId, parseInt(page), parseInt(limit));
+    res.status(200).json({ success: true, data: result.jobs, pagination: result.pagination });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+};
+
 module.exports = {
   createJob,
   getAllJobs,
@@ -197,4 +231,7 @@ module.exports = {
   saveJob,
   unsaveJob,
   getSavedJobs,
+  getApplicationCount,
+  markJobAsViewed,
+  getViewedJobs,
 };

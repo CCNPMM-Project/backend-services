@@ -8,6 +8,9 @@ router.post("/", authenticateToken, authorizeRole(["recruit"]), jobController.cr
 router.get("/", jobController.getAllJobs);
 router.get("/search", jobController.searchJobs);
 router.get("/saved", authenticateToken, jobController.getSavedJobs);
+router.get("/viewed", authenticateToken, jobController.getViewedJobs);
+router.get("/:jobId/applications/count", jobController.getApplicationCount);
+router.post("/:jobId/view", authenticateToken, jobController.markJobAsViewed);
 router.post("/:jobId/save", authenticateToken, jobController.saveJob);
 router.delete("/:jobId/save", authenticateToken, jobController.unsaveJob);
 router.get("/:jobId", jobController.getJobById);

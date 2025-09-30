@@ -63,8 +63,20 @@ const getAllJobs = async (page = 1, limit = 10) => {
   
   const total = await Job.countDocuments();
   
+  // Thêm số lượng ứng viên cho mỗi job
+  const Application = require("../models/Application");
+  const jobsWithApplicationCount = await Promise.all(
+    jobs.map(async (job) => {
+      const applicationCount = await Application.countDocuments({ job: job._id });
+      return {
+        ...job.toObject(),
+        applicationCount
+      };
+    })
+  );
+  
   return {
-    jobs,
+    jobs: jobsWithApplicationCount,
     pagination: {
       currentPage: page,
       totalPages: Math.ceil(total / limit),
@@ -239,6 +251,72 @@ const getSavedJobs = async (userId, page = 1, limit = 10) => {
   };
 };
 
+const getApplicationCount = async (jobId) => {
+  const Application = require("../models/Application");
+  const count = await Application.countDocuments({ job: jobId });
+  return count;
+};
+
+const markJobAsViewed = async (userId, jobId) => {
+  const user = await User.findById(userId);
+  if (!user) {
+    throw new Error("Người dùng không tồn tại!");
+  }
+
+  const job = await Job.findById(jobId);
+  if (!job) {
+    throw new Error("Công việc không tồn tại!");
+  }
+
+  // Kiểm tra xem job đã được xem chưa
+  const alreadyViewed = user.viewedJobs.some(
+    viewedJob => viewedJob.job.toString() === jobId
+  );
+
+  if (!alreadyViewed) {
+    user.viewedJobs.push({
+      job: jobId,
+      viewedAt: new Date()
+    });
+    await user.save();
+  }
+
+  return { message: "Đã đánh dấu công việc đã xem!" };
+};
+
+const getViewedJobs = async (userId, page = 1, limit = 10) => {
+  const user = await User.findById(userId).populate({
+    path: 'viewedJobs.job',
+    populate: {
+      path: 'company'
+    }
+  });
+
+  if (!user) {
+    throw new Error("Người dùng không tồn tại!");
+  }
+
+  const skip = (page - 1) * limit;
+  const viewedJobs = user.viewedJobs
+    .sort((a, b) => new Date(b.viewedAt) - new Date(a.viewedAt))
+    .slice(skip, skip + limit)
+    .map(item => item.job)
+    .filter(job => job !== null); // Lọc bỏ job đã bị xóa
+
+  const total = user.viewedJobs.length;
+
+  return {
+    jobs: viewedJobs,
+    pagination: {
+      currentPage: page,
+      totalPages: Math.ceil(total / limit),
+      totalJobs: total,
+      hasNext: page < Math.ceil(total / limit),
+      hasPrev: page > 1
+    }
+  };
+};
+
 module.exports = {
   checkJobOwnership,
   createJob,
@@ -251,4 +329,7 @@ module.exports = {
   saveJob,
   unsaveJob,
   getSavedJobs,
+  getApplicationCount,
+  markJobAsViewed,
+  getViewedJobs,
 };
