@@ -24,6 +24,10 @@ const UserSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId, 
     ref: "Company"
   },
+  savedJobs: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Job"
+  }],
   
   createdAt: { 
     type: Date, 

@@ -53,8 +53,26 @@ const createJob = async ({
   return job;
 };
 
-const getAllJobs = async () => {
-  return await Job.find().populate("company");
+const getAllJobs = async (page = 1, limit = 10) => {
+  const skip = (page - 1) * limit;
+  const jobs = await Job.find()
+    .populate("company")
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(limit);
+  
+  const total = await Job.countDocuments();
+  
+  return {
+    jobs,
+    pagination: {
+      currentPage: page,
+      totalPages: Math.ceil(total / limit),
+      totalJobs: total,
+      hasNext: page < Math.ceil(total / limit),
+      hasPrev: page > 1
+    }
+  };
 };
 
 const getAllJobsByCompany = async (companyId) => {
@@ -156,6 +174,71 @@ const searchJobs = async ({
   return await Job.find(query).populate("company");
 };
 
+const saveJob = async (userId, jobId) => {
+  const user = await User.findById(userId);
+  if (!user) {
+    throw new Error("Người dùng không tồn tại!");
+  }
+
+  const job = await Job.findById(jobId);
+  if (!job) {
+    throw new Error("Công việc không tồn tại!");
+  }
+
+  if (user.savedJobs.includes(jobId)) {
+    throw new Error("Công việc đã được lưu trước đó!");
+  }
+
+  user.savedJobs.push(jobId);
+  await user.save();
+
+  return { message: "Đã lưu công việc thành công!" };
+};
+
+const unsaveJob = async (userId, jobId) => {
+  const user = await User.findById(userId);
+  if (!user) {
+    throw new Error("Người dùng không tồn tại!");
+  }
+
+  if (!user.savedJobs.includes(jobId)) {
+    throw new Error("Công việc chưa được lưu!");
+  }
+
+  user.savedJobs = user.savedJobs.filter(id => id.toString() !== jobId);
+  await user.save();
+
+  return { message: "Đã bỏ lưu công việc thành công!" };
+};
+
+const getSavedJobs = async (userId, page = 1, limit = 10) => {
+  const user = await User.findById(userId).populate({
+    path: 'savedJobs',
+    populate: {
+      path: 'company'
+    }
+  });
+
+  if (!user) {
+    throw new Error("Người dùng không tồn tại!");
+  }
+
+  const skip = (page - 1) * limit;
+  const savedJobs = user.savedJobs.slice(skip, skip + limit);
+  const total = user.savedJobs.length;
+
+  return {
+    jobs: savedJobs,
+    pagination: {
+      currentPage: page,
+      totalPages: Math.ceil(total / limit),
+      totalJobs: total,
+      hasNext: page < Math.ceil(total / limit),
+      hasPrev: page > 1
+    }
+  };
+};
+
 module.exports = {
   checkJobOwnership,
   createJob,
@@ -165,4 +248,7 @@ module.exports = {
   updateJob,
   deleteJob,
   searchJobs,
+  saveJob,
+  unsaveJob,
+  getSavedJobs,
 };

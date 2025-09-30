@@ -90,8 +90,9 @@ const updateJob = async (req, res) => {
 // Các hàm khác giữ nguyên
 const getAllJobs = async (req, res) => {
   try {
-    const jobs = await jobService.getAllJobs();
-    res.status(200).json({ success: true, data: jobs });
+    const { page = 1, limit = 10 } = req.query;
+    const result = await jobService.getAllJobs(parseInt(page), parseInt(limit));
+    res.status(200).json({ success: true, data: result.jobs, pagination: result.pagination });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -149,6 +150,42 @@ const deleteJob = async (req, res) => {
   }
 };
 
+const saveJob = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const jobId = req.params.jobId;
+
+    const result = await jobService.saveJob(userId, jobId);
+    res.status(200).json({ success: true, message: result.message });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+};
+
+const unsaveJob = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const jobId = req.params.jobId;
+
+    const result = await jobService.unsaveJob(userId, jobId);
+    res.status(200).json({ success: true, message: result.message });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+};
+
+const getSavedJobs = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const { page = 1, limit = 10 } = req.query;
+
+    const result = await jobService.getSavedJobs(userId, parseInt(page), parseInt(limit));
+    res.status(200).json({ success: true, data: result.jobs, pagination: result.pagination });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+};
+
 module.exports = {
   createJob,
   getAllJobs,
@@ -157,4 +194,7 @@ module.exports = {
   getJobById,
   updateJob,
   deleteJob,
+  saveJob,
+  unsaveJob,
+  getSavedJobs,
 };
