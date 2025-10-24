@@ -6,6 +6,12 @@ const redisClient = require("../config/redisClient");
 const passport = require("passport");
 const { generateTokens } = require("../services/authService");
 
+// Check if MongoDB is connected
+const isMongoConnected = () => {
+  const mongoose = require("mongoose");
+  return mongoose.connection.readyState === 1;
+};
+
 
 const googleLogin = passport.authenticate("google", {
   scope: ["profile", "email"],
