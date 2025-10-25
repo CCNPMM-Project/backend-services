@@ -75,6 +75,12 @@ const loginUser = async (email, password) => {
   if (!user) {
     throw new Error("Email không tồn tại");
   }
+  
+  // Kiểm tra user có active không
+  if (!user.isActive) {
+    throw new Error("Tài khoản của bạn đã bị vô hiệu hóa. Vui lòng liên hệ quản trị viên!");
+  }
+  
   const isMatch = await bcrypt.compare(password, user.password);
   if (!isMatch) {
     throw new Error("Sai mật khẩu!");

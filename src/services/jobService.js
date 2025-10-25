@@ -34,6 +34,18 @@ const createJob = async ({
     throw new Error("Người dùng không tồn tại hoặc không có công ty liên kết!");
   }
 
+  // Kiểm tra user có active không
+  if (!user.isActive) {
+    throw new Error("Tài khoản của bạn đã bị vô hiệu hóa!");
+  }
+
+  // Kiểm tra company có active không
+  const Company = require("../models/Company");
+  const company = await Company.findById(user.company);
+  if (!company || !company.isActive) {
+    throw new Error("Công ty của bạn đã bị vô hiệu hóa!");
+  }
+
   const job = await Job.create({
     title,
     description,
@@ -55,13 +67,13 @@ const createJob = async ({
 
 const getAllJobs = async (page = 1, limit = 10) => {
   const skip = (page - 1) * limit;
-  const jobs = await Job.find()
+  const jobs = await Job.find({ status: 'active' })
     .populate("company")
     .sort({ createdAt: -1 })
     .skip(skip)
     .limit(limit);
   
-  const total = await Job.countDocuments();
+  const total = await Job.countDocuments({ status: 'active' });
   
   // Thêm số lượng ứng viên cho mỗi job
   const Application = require("../models/Application");
