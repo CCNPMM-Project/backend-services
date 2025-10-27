@@ -171,8 +171,13 @@ const searchJobs = async ({
 }) => {
   const query = {};
 
+  // Improved keyword search: use regex for more reliable matching
   if (keyword) {
-    query.$text = { $search: keyword };
+    // Use regex instead of text search for better matching with short keywords like "AI"
+    query.$or = [
+      { title: { $regex: keyword, $options: "i" } },
+      { description: { $regex: keyword, $options: "i" } }
+    ];
   }
 
   if (category) {
@@ -188,14 +193,39 @@ const searchJobs = async ({
   }
 
   if (location) {
-    query.location = { $regex: location, $options: "i" };
+    console.log('[JOB_SEARCH] Location provided:', location);
+    
+    // Add location condition properly
+    const locationRegex = new RegExp(location.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+    
+    if (query.$or) {
+      // If there's already $or from keyword, we need to combine with location
+      query.$and = [
+        { $or: query.$or },
+        { location: locationRegex }
+      ];
+      delete query.$or;
+    } else {
+      // Just add location regex
+      query.location = locationRegex;
+    }
+    console.log('[JOB_SEARCH] Location regex:', locationRegex);
   }
 
   if (status) {
     query.status = status;
   }
 
-  return await Job.find(query).populate("company");
+  console.log('[JOB_SEARCH] Query:', JSON.stringify(query, null, 2));
+  
+  const results = await Job.find(query).populate("company");
+  console.log('[JOB_SEARCH] Found', results.length, 'results');
+  
+  if (results.length > 0) {
+    console.log('[JOB_SEARCH] Sample job titles:', results.slice(0, 3).map(j => j.title));
+  }
+  
+  return results;
 };
 
 const saveJob = async (userId, jobId) => {

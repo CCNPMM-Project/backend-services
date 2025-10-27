@@ -69,6 +69,7 @@ app.use("/api/companies", require("./src/routes/companyRoutes"));
 app.use("/api/users", require("./src/routes/userRoutes"));
 app.use("/api/notifications", require("./src/routes/notificationRoutes"));
 app.use("/api/stats", require("./src/routes/statsRoutes"));
+app.use("/api/chatbot", require("./src/routes/chatbotRoutes"));
 
 
 module.exports = app;
