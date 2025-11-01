@@ -49,7 +49,7 @@ const createNotification = async (userId, title, message, type = "system", data 
 
 const getUserNotifications = async (userId, page = 1, limit = 20) => {
   const skip = (page - 1) * limit;
-  
+
   const notifications = await Notification.find({ user: userId })
     .sort({ createdAt: -1 })
     .skip(skip)
@@ -72,9 +72,9 @@ const getUserNotifications = async (userId, page = 1, limit = 20) => {
 const markAsRead = async (notificationId, userId) => {
   const notification = await Notification.findOneAndUpdate(
     { _id: notificationId, user: userId },
-    { 
-      isRead: true, 
-      readAt: new Date() 
+    {
+      isRead: true,
+      readAt: new Date()
     },
     { new: true }
   );
@@ -89,9 +89,9 @@ const markAsRead = async (notificationId, userId) => {
 const markAllAsRead = async (userId) => {
   const result = await Notification.updateMany(
     { user: userId, isRead: false },
-    { 
-      isRead: true, 
-      readAt: new Date() 
+    {
+      isRead: true,
+      readAt: new Date()
     }
   );
 
@@ -99,11 +99,11 @@ const markAllAsRead = async (userId) => {
 };
 
 const getUnreadCount = async (userId) => {
-  const count = await Notification.countDocuments({ 
-    user: userId, 
-    isRead: false 
+  const count = await Notification.countDocuments({
+    user: userId,
+    isRead: false
   });
-  
+
   return count;
 };
 
@@ -153,7 +153,7 @@ const notifyApplicationStatusChange = async (applicationId, jobTitle, status, ap
   try {
     const statusText = status === "accepted" ? "được chấp nhận" : "bị từ chối";
     const priority = status === "accepted" ? "high" : "medium";
-    
+
     await createNotification(
       applicantId,
       "Cập nhật đơn ứng tuyển",
@@ -210,7 +210,7 @@ const notifyJobMatch = async (userId, jobId, jobTitle, companyName, salary) => {
 const notifyDeadlineReminder = async (userId, jobTitle, daysLeft) => {
   try {
     const priority = daysLeft <= 1 ? "urgent" : daysLeft <= 3 ? "high" : "medium";
-    
+
     await createNotification(
       userId,
       "Nhắc nhở deadline ứng tuyển",
@@ -261,13 +261,13 @@ const notifyNewApplicant = async (jobId, applicantId, jobTitle, companyName, app
   try {
     const Job = require("../models/Job");
     const job = await Job.findById(jobId).populate("company");
-    
+
     if (!job || !job.company.recruiter) {
       return;
     }
 
     const recruiterId = job.company.recruiter;
-    
+
     await createNotification(
       recruiterId,
       "Ứng viên mới",
@@ -300,14 +300,14 @@ const notifyJobExpiring = async (jobId, jobTitle, daysLeft, companyName) => {
   try {
     const Job = require("../models/Job");
     const job = await Job.findById(jobId).populate("company");
-    
+
     if (!job || !job.company.recruiter) {
       return;
     }
 
     const recruiterId = job.company.recruiter;
     const priority = daysLeft <= 1 ? "urgent" : daysLeft <= 3 ? "high" : "medium";
-    
+
     await createNotification(
       recruiterId,
       "Công việc sắp hết hạn",
@@ -404,7 +404,7 @@ const notifyCompanyInterest = async (recruiterId, applicantName, companyName, jo
  */
 const sendBulkNotification = async (userIds, title, message, type = "system", data = {}, options = {}) => {
   const results = [];
-  
+
   for (const userId of userIds) {
     try {
       const notification = await createNotification(userId, title, message, type, data, options);
@@ -449,7 +449,7 @@ const getNotificationStats = async (userId) => {
 
     const result = stats[0];
     const byType = {};
-    
+
     result.byType.forEach(item => {
       if (!byType[item.type]) {
         byType[item.type] = { total: 0, unread: 0 };
@@ -479,20 +479,20 @@ module.exports = {
   getUnreadCount,
   deleteNotification,
   sendSocketNotification,
-  
+
   // Các hàm thông báo cho ứng viên
   notifyApplicationStatusChange,
   notifyJobMatch,
   notifyDeadlineReminder,
   notifyProfileViewed,
-  
+
   // Các hàm thông báo cho nhà tuyển dụng
   notifyNewApplicant,
   notifyJobExpiring,
   notifyWeeklyStats,
   notifyMonthlyStats,
   notifyCompanyInterest,
-  
+
   // Các hàm tiện ích
   sendBulkNotification,
   getNotificationStats

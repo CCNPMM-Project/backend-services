@@ -1,11 +1,32 @@
 const { updateUserProfile, getUserProfile } = require("../services/userService");
 const path = require("path");
+const fs = require("fs");
+
 const updateProfile = async (req, res) => {
   try {
     const { userId } = req.user; // Lấy userId từ JWT token (giả sử đã có middleware xác thực)
     const { fullname } = req.body; // Các thông tin khác gửi qua body
-    const avatarPath = req.files.avatar ? path.resolve(req.files.avatar[0].path) : null;
-    const cvPath = req.files.cv ? path.resolve(req.files.cv[0].path) : null;
+    
+    // Lấy đường dẫn file từ multer (đã là đường dẫn tuyệt đối)
+    let avatarPath = null;
+    let cvPath = null;
+    
+    if (req.files?.avatar && req.files.avatar[0]) {
+      avatarPath = path.resolve(req.files.avatar[0].path);
+      // Kiểm tra file có tồn tại không
+      if (!fs.existsSync(avatarPath)) {
+        throw new Error(`File avatar không tồn tại: ${avatarPath}`);
+      }
+    }
+    
+    if (req.files?.cv && req.files.cv[0]) {
+      cvPath = path.resolve(req.files.cv[0].path);
+      // Kiểm tra file có tồn tại không
+      if (!fs.existsSync(cvPath)) {
+        throw new Error(`File CV không tồn tại: ${cvPath}`);
+      }
+    }
+    
     const updatedUser = await updateUserProfile(userId, avatarPath, cvPath, fullname);
 
     return res.status(200).json({
@@ -13,8 +34,10 @@ const updateProfile = async (req, res) => {
       user: updatedUser,
     });
   } catch (error) {
-    console.error(error);
-    return res.status(500).json({ error: "Đã xảy ra lỗi khi cập nhật hồ sơ!" });
+    console.error("Lỗi khi cập nhật hồ sơ:", error);
+    return res.status(500).json({ 
+      error: error.message || "Đã xảy ra lỗi khi cập nhật hồ sơ!" 
+    });
   }
 };
 
